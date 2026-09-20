@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SIM-OR </title>
+<link rel="stylesheet" href="assets/style.css">
+
+</head>
+<body>
+<div class="page">
+  <div class="bg-grid"></div><div class="orb one"></div><div class="orb two"></div><div class="scanline"></div>
+
+  <section id="authView" class="auth-view">
+    <div class="hero"><div class="eyebrow">TERPERCAYA DAN PROFESIONAL</div><h1>SYSTEM MEDICAL INFORMATION <span>OR</span></h1><p>Patient monitoring workspace <p>• RSUD KOJA •</p></p></div>
+    <div class="auth-wrap">
+      <div class="auth-card" id="authCard">
+        <div class="auth-panel intro signup-intro"><div class="intro-content"><div class="eyebrow">ACCOUNT ACCESS</div><h2>HELLO,<br>FRIEND!</h2><p>Buat akun pengguna SIM-OR dan simpan data operasional pada database Google Sheets.</p><button class="text-link" id="toLogin" type="button">Sudah punya akun? <strong>Login</strong></button></div></div>
+        <div class="auth-panel form-panel signup-form"><div class="form-content"><h2>Sign Up</h2><p class="form-subtitle">Buat akun baru</p><form id="signupForm"><label class="field"><span class="fi">⌁</span><input id="suName" placeholder="Nama lengkap" required></label><label class="field"><span class="fi">@</span><input id="suUsername" placeholder="Username" required></label><label class="field"><span class="fi">✉</span><input id="suEmail" type="email" placeholder="Email" required></label><label class="field"><span class="fi">⌑</span><input id="suPassword" type="password" placeholder="Password minimal 8 karakter" required><button type="button" class="eye" data-eye="suPassword">◉</button></label><button class="primary-btn" type="submit"><span>Sign Up</span><b>→</b></button><div class="status" id="suStatus"></div></form></div></div>
+        <div class="auth-panel form-panel login-form"><div class="form-content"><h2>Login</h2><p class="form-subtitle">Masuk ke SIM-OR RSUD KOJA</p><form id="loginForm"><label class="field"><span class="fi">⌁</span><input id="liUsername" placeholder="Username" autocomplete="username" required></label><label class="field"><span class="fi">⌑</span><input id="liPassword" type="password" placeholder="Password" autocomplete="current-password" required><button type="button" class="eye" data-eye="liPassword">◉</button></label><div class="row-between"><label class="remember"><input id="remember" type="checkbox"> Remember me</label><button class="link-btn" type="button" id="forgot">Lupa password?</button></div><button class="primary-btn" type="submit"><span>Login</span><b>→</b></button><div class="status" id="liStatus"></div><div class="diag">Autentikasi nyata • akun tersimpan di Google Sheets</div></form></div></div>
+        <div class="auth-panel intro login-intro"><div class="intro-content"><div class="eyebrow">SECURE CONNECTION</div><h2>WELCOME<br>BACK!</h2><p>Masuk dengan akun personal Anda untuk mengelola data operasi dan laporan monitoring.</p><button class="text-link" id="toSignup" type="button">Belum punya akun? <strong>Sign Up</strong></button></div></div>
+        <div class="diagonal"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="appView" class="hidden">
+    <header class="topbar"><div class="brand"><div class="brand-mark">S</div><div><strong>SIM-OR</strong><span>RSUD KOJA </span></div></div><div class="top-actions"><div class="user-pill"><span class="status-dot"></span><span id="userPill">—</span></div><button class="icon-btn" id="refreshBtn">↻ Refresh</button><button class="logout-btn" id="logoutBtn">Logout ↗</button></div></header>
+    <main class="app"><div class="shell">
+      <section class="hero-card app-home"><div class="eyebrow">AUTHENTICATED SESSION • GOOGLE SHEETS ACTIVE</div><h1>Welcome back, <span id="heroUser">—</span>.</h1><p>Kelola entri operasi, perubahan data dengan audit trail, serta enam output printout: MINIMAL, EVA ANESTESI, MUTU, INFORM CONSENT, SITE MARKER, dan LAPORAN OPERASI BEDAH SENTRAL.</p><div class="actions"><button class="btn primary" data-nav="entry">Entri Operasi Baru →</button><button class="btn" data-nav="data">Data Tersimpan</button><button class="btn" data-nav="reports">Laporan</button></div></section>
+      <section class="stats"><div class="stat"><span class="eyebrow">01 • SESSION</span><span class="v">ACTIVE</span><small id="sessionExpiry">—</small></div><div class="stat"><span class="eyebrow">02 • DATA</span><span class="v" id="statTotal">0</span><small>Total operasi aktif</small></div><div class="stat"><span class="eyebrow">03 • HARI INI</span><span class="v" id="statToday">0</span><small>Operasi tanggal hari ini</small></div><div class="stat"><span class="eyebrow">04 • STORAGE</span><span class="v">SHEETS</span><small>Database utama</small></div></section>
+      <section class="grid2 app-home"><article class="panel"><div class="eyebrow">QUICK MENU</div><h2>Workspace</h2><div class="menu"><button data-nav="entry"><span class="mi">✚</span><div><strong>Entri Operasi</strong><small>Form lengkap + dokter + perawat</small></div><b>→</b></button><button data-nav="data"><span class="mi">⌘</span><div><strong>Data Tersimpan</strong><small>Edit, hapus, histori perubahan</small></div><b>→</b></button><button data-nav="reports"><span class="mi">▤</span><div><strong>Preview Lembar</strong><small>6 output printout otomatis</small></div><b>→</b></button><button data-nav="audit"><span class="mi">◈</span><div><strong>Audit Trail</strong><small>Siapa melakukan perubahan</small></div><b>→</b></button></div></article><aside class="panel"><div class="eyebrow">SYSTEM</div><h2>Status</h2><div class="security"><div class="sec"><span>Authentication</span><b>SERVER</b></div><div class="sec"><span>Database</span><b>GOOGLE SHEETS</b></div><div class="sec"><span>Audit trail</span><b>ACTIVE</b></div><div class="sec"><span>Soft delete</span><b>ACTIVE</b></div></div><div class="notice">Data yang dihapus tidak dihilangkan dari database. Status diubah menjadi DELETED dan aktivitas dicatat di AUDIT_LOG.</div></aside></section>
+
+      <section id="entrySection" class="section hidden"><div class="panel"><div class="section-head"><div><div class="eyebrow">PATIENT ENTRY</div><h2 id="entryTitle">Entri Lembar Baru</h2></div><button class="btn" data-nav="home">← Dashboard</button></div><form id="entryForm" class="form-grid">
+        <div class="fg"><label>JAM DATANG PRE OP</label><input id="f_pre" type="time" required></div>
+        <div class="fg"><label>HARI/TGL</label><input id="f_date" type="date" required></div>
+        <div class="fg w6"><label>IDENTITAS (NAMA)</label><input id="f_nama" placeholder="Nama lengkap pasien" required></div>
+        <div class="fg"><label>USIA (0Th)</label><input id="f_usia" type="number" min="0" max="150" required></div>
+        <div class="fg"><label>JENIS KELAMIN (L/P)</label><select id="f_gender" required></select></div>
+        <div class="fg"><label>NOMOR RM</label><input id="f_rm" inputmode="numeric" placeholder="00000000" required></div>
+        <div class="fg"><label>JAM MULAI OPERASI</label><input id="f_start" type="time" required></div>
+        <div class="fg"><label>KAMAR OPERASI</label><select id="f_kamar" required></select></div>
+        <div class="fg"><label>JENIS OP</label><select id="f_jenisop" required></select></div>
+        <div class="fg w6"><label>DIAGNOSA PRE-OP</label><textarea id="f_dxpre" required></textarea></div>
+        <div class="fg w6"><label>TINDAKAN</label><textarea id="f_tindakan" required></textarea></div>
+        <div class="fg w6"><label>DIAGNOSA POST OP</label><textarea id="f_dxpost" required></textarea></div>
+        <div class="fg"><label>JENIS ANASTESI</label><select id="f_anes" required></select></div>
+        <div class="fg"><label>ASA (1-6)</label><select id="f_asa" required></select></div>
+        <div class="fg w6"><label>DOKTER ANASTESI</label><select id="f_anesthesiologist" required></select></div>
+        <div class="fg w6"><label>DOKTER OPERATOR</label><select id="f_operator" required></select></div>
+        <div class="fg w6"><label>DOKTER PENDAMPING</label><select id="f_companion" required></select></div>
+        <div class="fg w6"><label>ASISTEN ANASTESI / PENATA ANASTESI</label><select id="f_assAnes" required></select></div>
+        <div class="fg w6"><label>ASISTEN OPERATOR / RESIDEN</label><select id="f_assOp" required></select></div>
+        <div class="fg w6"><label>PERAWAT INSTRUMEN</label><select id="f_instr" required></select></div>
+        <div class="fg w6"><label>PERAWAT SIRKULER</label><select id="f_circ" required></select></div>
+        <div class="fg"><label>JAM MASUK RR</label><input id="f_rr" type="time" required></div>
+        <div class="fg"><label>RUANGAN EVALUASI / VALIDASI</label><select id="f_room" required></select></div>
+        <div class="room-info"><span class="status-dot"></span><strong id="roomTitle">OK 3B</strong><span id="roomText">Validator: —</span></div>
+        <div class="form-actions"><button type="submit" class="btn primary" id="saveEntryBtn">Simpan Data →</button><button type="button" class="btn" id="resetEntryBtn">Form Baru</button><button type="button" class="btn" id="cancelEditBtn">Batal Edit</button></div>
+        <div id="formStatus" class="status" style="grid-column:span 12"></div>
+      </form></div></section>
+
+      <section id="dataSection" class="section hidden"><div class="panel"><div class="section-head"><div><div class="eyebrow">LOCALIZED VIEW • GOOGLE SHEETS</div><h2>Data Operasi</h2></div><div class="print-actions"><button class="btn danger" id="deleteFilteredBtn">Hapus Filtered</button><button class="btn" data-nav="entry">+ Entri Baru</button></div></div><div class="searchbar" style="margin-top:14px"><input id="q" placeholder="Cari nama / RM / diagnosis / tindakan"><input id="filterDate" type="date"><select id="filterRoom"></select><select id="filterKamar"><option value="">Semua OK</option><option>OK1</option><option>OK2</option><option>OK3</option><option>OK4</option><option>OK5</option><option>OK6</option></select><button class="btn" id="applyFilterBtn">Terapkan</button><button class="btn" id="clearFilterBtn">Reset</button></div><div class="table-wrap"><table><thead><tr><th>NO</th><th>HARI/TGL</th><th>JAM PRE-OP</th><th>NAMA</th><th>USIA</th><th>JK</th><th>NO.RM</th><th>MULAI OP</th><th>KAMAR</th><th>JENIS</th><th>DIAGNOSA PRE</th><th>TINDAKAN</th><th>POST OP</th><th>ANESTESI</th><th>ASA</th><th>DOKTER OPERATOR</th><th>RR</th><th>DIBUAT/OLEH</th><th>DIPERBARUI/OLEH</th><th>AKSI</th></tr></thead><tbody id="dataBody"></tbody></table></div></div></section>
+
+      <section id="reportsSection" class="section hidden"><div class="panel report-print-section"><div class="section-head no-print"><div><div class="eyebrow">DOCUMENT CENTER</div><h2>Preview & Printout</h2></div><div class="print-actions"><button class="btn" id="printActive">Cetak Aktif</button><button class="btn primary" id="printAll">Cetak Semua</button></div></div><div class="searchbar no-print" style="margin-top:14px"><input id="reportDate" type="date"><select id="reportRoom"></select><select id="reportPeriod"><option value="day">Harian</option><option value="week">Mingguan</option><option value="month">Bulanan</option></select><button class="btn" id="refreshReportsBtn">Perbarui Laporan</button></div><div class="tabs no-print" id="reportTabs"></div><div id="reportArea" class="report-area"></div></div></section>
+
+      <section id="auditSection" class="section hidden"><div class="panel"><div class="section-head"><div><div class="eyebrow">AUDIT TRAIL</div><h2>Riwayat Aktivitas</h2></div></div><div class="searchbar" style="margin-top:14px"><input id="auditSearch" placeholder="Filter username / aksi / pasien / RM"><button class="btn" id="refreshAuditBtn">Refresh</button></div><div class="table-wrap audit-table"><table><thead><tr><th>WAKTU</th><th>AKSI</th><th>USER</th><th>PASIEN</th><th>RM</th><th>ENTRY ID</th><th>PERUBAHAN</th><th>KETERANGAN</th></tr></thead><tbody id="auditBody"></tbody></table></div></div></section>
+      <div class="footer">SIM-OR RSUD KOJA <span>V11</span> • GOOGLE SHEETS DATABASE • AUDIT READY</div>
+    </div></main>
+  </section>
+
+  <div id="historyModal" class="modal hidden"><div class="modal-card"><div class="modal-head"><div><div class="eyebrow">AUDIT HISTORY</div><h3 id="historyTitle">Riwayat</h3></div><button class="modal-close" id="closeHistory">×</button></div><div id="historyBody" style="margin-top:12px"></div></div></div>
+  <div id="toast" class="toast"></div>
+</div>
+
+<script src="assets/config.js"></script>
+<script src="assets/app.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,125 @@
+const KEY='SIMOR_V11_TOKEN';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const state={token:'',user:null,masters:{},entries:[],editingId:null,activeView:'home',activeReport:'minimal',reportEntries:[],audit:[]};
+const reportDefs={
+ minimal:{title:'MONITOR DAN EVALUASI STANDAR PELAYANAN MINIMAL KAMAR OPERASI',base:['NAMA LENGKAP PASIEN','NO.RM','DIAGNOSA','TINDAKAN OPERASI'],ind:['KEJADIAN KONSULTASI DURANTE OPERASI','KEJADIAN LUKA BAKAR AKIBAT DIATERM','KESESUAIAN DX PRE DAN POST OPERASI','KEJADIAN KESALAHAN GOLONGAN DARAH','WAKTU OPERASI ELEKTIF ≤ 2 HARI','TIDAK ADANYA KEJADIAN KEMATIAN DI MEJA OPERASI','TIDAK ADANYA KEJADIAN OPERASI SALAH SISI','TIDAK ADANYA KEJADIAN OPERASI SALAH ORANG','TIDAK ADANYA KEJADIAN SALAH TINDAKAN PADA OPERASI','TIDAK ADANYA KEJADIAN TERTINGGALNYA BENDA ASING/LAIN PADA TUBUH PASIEN SETELAH OPERASI']},
+ eva:{title:'MONITOR EVALUASI ANESTESI',base:['NAMA LENGKAP PASIEN','NO.RM','DIAGNOSA','TINDAKAN OPERASI'],ind:['KOMPLIKASI ANESTESI KARENA OVERDOSIS ATAU REAKSI ANESTESI DAN SALAH PENEMPATAN','KEJADIAN DENGAN SATURASI O2 PADA SAAT DURANTE ANESTESI PASIEN DENGAN GENERAL ANESTESI','ASSESMEN PRA SEDASI DAN PRA ANESTESI','MONITORING STATUS FISIOLOGIS SELAMA ANESTESI','MONITORING PROSES PEMULIHAN ANESTESI DAN SEDASI DALAM','EVALUASI ULANG BILA TERJADI KONVERSI TINDAKAN DARI LOCAL/REGIONAL KE GENERAL']},
+ mutu:{title:'MONITORING EVALUASI MUTU KAMAR OPERASI TINDAKAN OPERASI',base:['NAMA LENGKAP PASIEN','NO.RM','DIAGNOSA','TINDAKAN OPERASI'],ind:['ASSESMEN PRABEDAH','PENANDAAN LOKASI OPERASI','PELAKSANAAN SURGICAL SAFETY LIST PADA PASIEN OPERASI','DISKREPANSI DIAGNOSA MEDIS PRE DENGAN POST OPERASI']},
+ inform:{title:'MONITORING EVALUASI KELENGKAPAN PENGISIAN FORMULIR PERSETUJUAN TINDAKAN OPERASI INFORMED CONSENT BEDAH',base:['NAMA LENGKAP PASIEN','NO.RM','DIAGNOSA','TINDAKAN OPERASI'],ind:['OPERATOR','DIAGNOSIS','DASAR DIAGNOSIS','TINDAKAN','INDIKASI TINDAKAN','TATA CARA','TUJUAN TINDAKAN','RESIKO TINDAKAN','KOMPLIKASI','PROGNOSIS','ALTERNATIF DAN RESIKO','ID LENGKAPI PEMBERI KEPUTUSAN','ID LENGKAPI PASIEN','TANGGAL PERSETUJUAN','TTD DAN NAMA PEMBERI','SAKSI 1','SAKSI 2']},
+ site:{title:'EVALUASI SITE MARKETING INSTALASI BEDAH SENTRAL RSUD KOJA',base:['TANGGAL','NAMA LENGKAP PASIEN','NO.RM','DIAGNOSA'],ind:['SITE MARKING DILAKUKAN OLEH OPERATOR','SITE MARKING DILAKUKAN SEBELUM MASUK KAMAR OPERASI','GAMBAR SITE MARKING SESUAI DOKTER OPERATOR'],extra:['DOKTER OPERATOR']},
+ operasi:{title:'LAPORAN OPERASI BEDAH SENTRAL',base:['JAM DATANG PRE OPERASI','HARI/TGL','IDENTITAS (NAMA)','USIA','Jenis Kelamin','NOMOR RM','Jam Mulai Operasi','Kamar Operasi','Jenis OP','Diagnosa Pre-OP','Tindakan','DIAGNOSA POST OP','JENIS ANASTESI','ASA','DOKTER ANASTESI','DOKTER OPERATOR','DOKTER PENDAMPING','ASISTEN ANASTESI','ASISTEN OPERATOR','PERAWAT INSTRUMENT','PERAWAT SIRKULER','JAM MASUK RR']}
+};
+function gs(fn,...args){return apiCall(fn,args)}
+
+function apiCall(action,args=[]){
+  if(!window.SIMOR_CONFIG || !SIMOR_CONFIG.API_BASE_URL || SIMOR_CONFIG.API_BASE_URL.includes('PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL') || SIMOR_CONFIG.API_BASE_URL.includes('PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE')){
+    return Promise.reject(new Error('API belum dikonfigurasi. Buka assets/config.js dan isi API_BASE_URL dengan URL Web App Google Apps Script.'));
+  }
+  const base=SIMOR_CONFIG.API_BASE_URL.replace(/\/$/,'');
+  const callback='simor_cb_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
+  const argsJson=JSON.stringify(args||[]);
+  const url=base+'?action='+encodeURIComponent(action)+'&callback='+encodeURIComponent(callback)+'&args='+encodeURIComponent(argsJson);
+  return new Promise((resolve,reject)=>{
+    let settled=false;
+    const script=document.createElement('script');
+    const cleanup=()=>{clearTimeout(timer);delete window[callback];script.remove();};
+    const timer=setTimeout(()=>{if(settled)return;settled=true;cleanup();reject(new Error('API timeout. Pastikan Web App Apps Script sudah di-deploy sebagai Web App dan URL benar.'));},20000);
+    window[callback]=(result)=>{if(settled)return;settled=true;cleanup();resolve(result);};
+    script.onerror=()=>{if(settled)return;settled=true;cleanup();reject(new Error('Gagal menghubungi Google Apps Script API.'));};
+    script.src=url;
+    script.async=true;
+    document.head.appendChild(script);
+  });
+}
+
+function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2400)}
+function setStatus(id,msg,kind=''){const el=$(id);el.textContent=msg;el.className='status '+kind}
+function isoToday(){return new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'})}
+function humanDate(v){if(!v)return'';const [y,m,d]=String(v).slice(0,10).split('-');return `${d}/${m}/${y}`}
+function fmtTime(v){return v||''}
+function fmtStamp(v){try{return new Date(v).toLocaleString('id-ID',{dateStyle:'short',timeStyle:'short'})}catch{return v||''}}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function optionList(el,arr,placeholder='Pilih...'){el.innerHTML=`<option value="">${placeholder}</option>`+(arr||[]).map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('')}
+async function boot(){
+  const token=localStorage.getItem(KEY)||sessionStorage.getItem(KEY); if(token){state.token=token;try{const me=await gs('apiMe',token);if(me.ok){state.user=me.user;await openApp();return}}catch{}clearToken()}
+  showAuth();
+  $('#authCard').classList.remove('login-mode');
+}
+function showAuth(){
+  $('#authView').classList.remove('hidden');$('#appView').classList.add('hidden');
+}
+function clearToken(){localStorage.removeItem(KEY);sessionStorage.removeItem(KEY);state.token='';state.user=null}
+async function openApp(){
+  $('#authView').classList.add('hidden');$('#appView').classList.remove('hidden');
+  $('#userPill').textContent=state.user.fullName;$('#heroUser').textContent=state.user.fullName;
+  const me=await gs('apiMe',state.token);$('#sessionExpiry').textContent=`Berlaku sampai ${fmtStamp(me.expiresAt)}`;
+  await gs('apiGetConfig');state.masters=(await gs('apiGetMasters',state.token)).masters||{};populateMasters();setDefaultFilters();await loadEntries();await loadAudit();navigate('home');toast('Terhubung ke Google Sheets');
+}
+function populateMasters(){
+  optionList($('#f_gender'),state.masters.jenisKelamin);optionList($('#f_kamar'),state.masters.kamarOperasi);optionList($('#f_jenisop'),state.masters.jenisOP);optionList($('#f_anes'),state.masters.jenisAnestesi);optionList($('#f_asa'),state.masters.ASA);
+  optionList($('#f_anesthesiologist'),state.masters.dokterAnestesi);optionList($('#f_operator'),state.masters.dokterOperator);optionList($('#f_companion'),state.masters.dokterPendamping);optionList($('#f_assAnes'),state.masters.penataAnestesi);optionList($('#f_assOp'),state.masters.residen);optionList($('#f_instr'),state.masters.perawat);optionList($('#f_circ'),state.masters.perawat);optionList($('#f_room'),state.masters.ruanganEvaluasi);optionList($('#filterRoom'),['',...(state.masters.ruanganEvaluasi||[])]);optionList($('#reportRoom'),['',...(state.masters.ruanganEvaluasi||[])]);
+}
+function setDefaultFilters(){const d=isoToday();['f_date','filterDate','reportDate'].forEach(id=>$( '#'+id).value=d);$('#f_room').value='OK 3B';$('#filterRoom').value='';$('#reportRoom').value='';updateRoomInfo();}
+function updateRoomInfo(){const room=$('#f_room').value;$('#roomTitle').textContent=room||'—';$('#roomText').textContent='Validator: '+({'OK 3B':'Ns. Evaristo Menezes, S.Kep','OK 5D':'Ns. Etti Manurung, S.Kep','OK 4C':'Ns. Kholisotus Sholihah, S.Kep'}[room]||'—')}
+function autoMapRoom(){const k=$('#f_kamar').value;const m={OK3:'OK 3B',OK5:'OK 5D',OK4:'OK 4C'}[k];if(m){$('#f_room').value=m;updateRoomInfo()}}
+function entryPayload(){return{jamDatangPreOp:$('#f_pre').value,tanggal:$('#f_date').value,nama:$('#f_nama').value,usia:$('#f_usia').value,jenisKelamin:$('#f_gender').value,nomorRM:$('#f_rm').value,jamMulaiOperasi:$('#f_start').value,kamarOperasi:$('#f_kamar').value,jenisOP:$('#f_jenisop').value,diagnosaPreOP:$('#f_dxpre').value,tindakan:$('#f_tindakan').value,diagnosaPostOP:$('#f_dxpost').value,jenisAnestesi:$('#f_anes').value,ASA:$('#f_asa').value,dokterAnestesi:$('#f_anesthesiologist').value,dokterOperator:$('#f_operator').value,dokterPendamping:$('#f_companion').value||'Tidak ada',asistenAnestesi:$('#f_assAnes').value,asistenOperator:$('#f_assOp').value,perawatInstrumen:$('#f_instr').value,perawatSirkuler:$('#f_circ').value,jamMasukRR:$('#f_rr').value,ruanganEvaluasi:$('#f_room').value}}
+function fillForm(e){state.editingId=e.id;$('#entryTitle').textContent='Edit Data Operasi';$('#saveEntryBtn').textContent='Simpan Perubahan →';$('#f_pre').value=e.jamDatangPreOp||'';$('#f_date').value=e.tanggal||'';$('#f_nama').value=e.nama||'';$('#f_usia').value=e.usia??'';$('#f_gender').value=e.jenisKelamin||'';$('#f_rm').value=e.nomorRM||'';$('#f_start').value=e.jamMulaiOperasi||'';$('#f_kamar').value=e.kamarOperasi||'';$('#f_jenisop').value=e.jenisOP||'';$('#f_dxpre').value=e.diagnosaPreOP||'';$('#f_tindakan').value=e.tindakan||'';$('#f_dxpost').value=e.diagnosaPostOP||'';$('#f_anes').value=e.jenisAnestesi||'';$('#f_asa').value=e.ASA||'';$('#f_anesthesiologist').value=e.dokterAnestesi||'';$('#f_operator').value=e.dokterOperator||'';$('#f_companion').value=e.dokterPendamping||'Tidak ada';$('#f_assAnes').value=e.asistenAnestesi||'';$('#f_assOp').value=e.asistenOperator||'';$('#f_instr').value=e.perawatInstrumen||'';$('#f_circ').value=e.perawatSirkuler||'';$('#f_rr').value=e.jamMasukRR||'';$('#f_room').value=e.ruanganEvaluasi||'OK 3B';updateRoomInfo();navigate('entry')}
+function resetForm(){state.editingId=null;$('#entryTitle').textContent='Entri Lembar Baru';$('#saveEntryBtn').textContent='Simpan Data →';$('#entryForm').reset();$('#f_date').value=isoToday();$('#f_room').value='OK 3B';updateRoomInfo();setStatus('#formStatus','')}
+async function saveEntry(e){e.preventDefault();const p=entryPayload();const button=$('#saveEntryBtn');button.disabled=true;setStatus('#formStatus',state.editingId?'Memproses perubahan…':'Menyimpan data…');try{if(state.editingId){if(!confirm('Simpan perubahan data operasi ini?'))return;const r=await gs('apiUpdateEntry',state.token,state.editingId,p);if(!r.ok)throw new Error(r.message);toast('Perubahan berhasil disimpan. Audit tercatat.')}else{const r=await gs('apiCreateEntry',state.token,p);if(!r.ok)throw new Error(r.message);toast('Data operasi berhasil disimpan.')}resetForm();await loadEntries();await loadAudit();navigate('data')}catch(err){setStatus('#formStatus',err.message||'Gagal menyimpan','err')}finally{button.disabled=false}}
+async function loadEntries(){const f={date:$('#filterDate')?.value||'',ruanganEvaluasi:$('#filterRoom')?.value||'',kamarOperasi:$('#filterKamar')?.value||'',search:$('#q')?.value||''};const r=await gs('apiGetEntries',state.token,f);if(!r.ok)throw new Error(r.message);state.entries=r.entries||[];renderData();updateStats()}
+function updateStats(){const today=isoToday();$('#statTotal').textContent=state.entries.length;$('#statToday').textContent=state.entries.filter(e=>e.tanggal===today).length}
+function renderData(){const body=$('#dataBody');if(!state.entries.length){body.innerHTML='<tr><td colspan="20" class="muted" style="text-align:center;padding:25px">Belum ada data pada filter yang dipilih.</td></tr>';return}body.innerHTML=state.entries.map((e,i)=>`<tr><td>${i+1}</td><td>${humanDate(e.tanggal)}</td><td>${fmtTime(e.jamDatangPreOp)}</td><td>${escapeHtml(e.nama)}</td><td>${e.usia}</td><td>${e.jenisKelamin}</td><td>${escapeHtml(e.nomorRM)}</td><td>${fmtTime(e.jamMulaiOperasi)}</td><td><span class="chip">${e.kamarOperasi}</span></td><td>${e.jenisOP}</td><td>${escapeHtml(e.diagnosaPreOP)}</td><td>${escapeHtml(e.tindakan)}</td><td>${escapeHtml(e.diagnosaPostOP)}</td><td>${e.jenisAnestesi}</td><td>${e.ASA}</td><td>${escapeHtml(e.dokterOperator)}</td><td>${fmtTime(e.jamMasukRR)}</td><td>${escapeHtml(e.createdByName||'')}<br><span class="muted">${fmtStamp(e.createdAt)}</span></td><td>${escapeHtml(e.updatedByName||'')}<br><span class="muted">${fmtStamp(e.updatedAt)}</span></td><td class="actions-cell"><button class="btn mini" data-edit="${e.id}">Edit</button> <button class="btn mini danger" data-del="${e.id}">Hapus</button> <button class="btn mini" data-history="${e.id}">Riwayat</button></td></tr>`).join('');}
+async function delEntry(id){const e=state.entries.find(x=>x.id===id);if(!e)return;if(!confirm(`Hapus data ${e.nama} / RM ${e.nomorRM}?\nData akan di-soft delete dan audit disimpan.`))return;const r=await gs('apiDeleteEntry',state.token,id);if(!r.ok)throw new Error(r.message);toast('Data dihapus. Audit tercatat.');await loadEntries();await loadAudit();await refreshReports()}
+async function delFiltered(){const date=$('#filterDate').value,room=$('#filterRoom').value;if(!date||!room){toast('Pilih tanggal dan ruangan evaluasi terlebih dahulu.');return}const count=state.entries.length;if(!count){toast('Tidak ada data untuk dihapus.');return}if(!confirm(`Hapus ${count} data pada ${humanDate(date)} / ${room}?\nSemua akan menjadi DELETED dan masuk AUDIT_LOG.`))return;const r=await gs('apiDeleteBulk',state.token,{date,ruanganEvaluasi:room});if(!r.ok)throw new Error(r.message);toast(`${r.deleted} data dihapus. Audit tercatat.`);await loadEntries();await loadAudit();await refreshReports()}
+function reportPeriodEntries(){const base=$('#reportDate').value||isoToday(),period=$('#reportPeriod').value,room=$('#reportRoom').value;let d=state.allEntries||[];let from=base,to=base;const dt=new Date(base+'T00:00:00');if(period==='week'){const day=dt.getDay()||7;const s=new Date(dt);s.setDate(dt.getDate()-day+1);const e=new Date(s);e.setDate(s.getDate()+6);from=s.toISOString().slice(0,10);to=e.toISOString().slice(0,10)}else if(period==='month'){from=base.slice(0,7)+'-01';const e=new Date(dt.getFullYear(),dt.getMonth()+1,0);to=e.toISOString().slice(0,10)}return d.filter(x=>x.status!=='DELETED'&&x.tanggal>=from&&x.tanggal<=to&&(!room||x.ruanganEvaluasi===room))}
+async function getAllEntries(){const r=await gs('apiGetEntries',state.token,{});if(!r.ok)throw new Error(r.message);state.allEntries=r.entries||[]}
+async function refreshReports(){await getAllEntries();state.reportEntries=reportPeriodEntries();renderReportTabs();renderReport();}
+function renderReportTabs(){const tabs=$('#reportTabs');tabs.innerHTML=['minimal','eva','mutu','inform','site','operasi'].map(k=>`<button class="tab ${state.activeReport===k?'active':''}" data-report="${k}">${k==='minimal'?'MINIMAL':k==='eva'?'EVA ANESTESI':k==='mutu'?'MUTU':k==='inform'?'INFORM CONSENT':k==='site'?'SITE MARKER':'LAPORAN OPERASI'}</button>`).join('')}
+function checkVal(e,doc,i){const a=e.checks?.[doc];return Array.isArray(a)?(a[i]??''):''}
+function indicatorCell(e,doc,i){const v=checkVal(e,doc,i);return `<td><button class="mini ${v===1?'btn primary': 'btn'}" data-check="${e.id}|${doc}|${i}">${v===''?'—':v}</button></td>`}
+function renderMonitorReport(doc){
+  const def=reportDefs[doc], idx=state.reportEntries;
+  const head=[...def.base,...def.ind,...(def.extra||[]),'N'];
+  let rows='';
+  idx.forEach((e,r)=>{
+    const cells=[];
+    cells.push(`<td>${r+1}</td>`);
+    if(doc==='site'){
+      cells.push(`<td>${humanDate(e.tanggal)}</td>`,`<td class="left">${escapeHtml(e.nama)}</td>`,`<td>${escapeHtml(e.nomorRM)}</td>`,`<td class="left">${escapeHtml(e.diagnosaPreOP)}</td>`);
+    }else{
+      cells.push(`<td class="left">${escapeHtml(e.nama)}</td>`,`<td>${escapeHtml(e.nomorRM)}</td>`,`<td class="left">${escapeHtml(e.diagnosaPreOP)}</td>`,`<td class="left">${escapeHtml(e.tindakan)}</td>`);
+    }
+    def.ind.forEach((_,i)=>cells.push(indicatorCell(e,doc,i)));
+    if(def.extra) def.extra.forEach(x=>cells.push(`<td class="left">${escapeHtml(e.dokterOperator)}</td>`));
+    const n=def.ind.reduce((sum,_,i)=>sum+(Number(checkVal(e,doc,i))===1?1:0),0);
+    cells.push(`<td>${n}</td>`);
+    rows += `<tr>${cells.join('')}</tr>`;
+  });
+  const validatorMap={'OK 3B':'Ns. Evaristo Menezes, S.Kep','OK 5D':'Ns. Etti Manurung, S.Kep','OK 4C':'Ns. Kholisotus Sholihah, S.Kep'};
+  const room=$('#reportRoom').value||'SEMUA';
+  $('#reportArea').innerHTML=`<div class="document"><h3>${def.title}</h3><div class="meta">RUANGAN EVALUASI: ${escapeHtml(room)} &nbsp;&nbsp; PERIODE: ${escapeHtml($('#reportPeriod').value.toUpperCase())} &nbsp;&nbsp; DASAR TANGGAL: ${humanDate($('#reportDate').value)}</div><div class="table-wrap"><table><thead><tr><th>NO</th>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><div style="margin-top:8px;font-size:7px">KETERANGAN: 0 = TIDAK DILAKUKAN • 1 = DILAKUKAN. Pengumpul Data: ${escapeHtml(state.user.fullName)} &nbsp;&nbsp; Validator: ${escapeHtml(validatorMap[room]||'—')}</div></div>`;
+}
+function renderOperationsReport(){const idx=state.reportEntries, cols=reportDefs.operasi.base;let html=`<div class="document"><h3>LAPORAN OPERASI BEDAH SENTRAL</h3><div class="meta">PERIODE: ${escapeHtml($('#reportPeriod').value.toUpperCase())} • DASAR TANGGAL: ${humanDate($('#reportDate').value)} • RUANGAN EVALUASI: ${escapeHtml($('#reportRoom').value||'SEMUA')}</div><div class="table-wrap"><table><thead><tr><th>NO</th>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;idx.forEach((e,i)=>{const vals=[e.jamDatangPreOp,humanDate(e.tanggal),e.nama,e.usia,e.jenisKelamin,e.nomorRM,e.jamMulaiOperasi,e.kamarOperasi,e.jenisOP,e.diagnosaPreOP,e.tindakan,e.diagnosaPostOP,e.jenisAnestesi,e.ASA,e.dokterAnestesi,e.dokterOperator,e.dokterPendamping,e.asistenAnestesi,e.asistenOperator,e.perawatInstrumen,e.perawatSirkuler,e.jamMasukRR];html+=`<tr><td>${i+1}</td>${vals.map((v,j)=>`<td class="${j===2||j===9||j===10||j===11?'left':''}">${escapeHtml(v)}</td>`).join('')}</tr>`});html+=`</tbody></table></div><div style="margin-top:9px;font-size:7px">PENGUMPUL DATA: ${escapeHtml(state.user.fullName)}</div></div>`;$('#reportArea').innerHTML=html}
+function renderReport(){if(state.activeReport==='operasi')renderOperationsReport();else renderMonitorReport(state.activeReport)}
+async function updateCheck(id,doc,i,value){const r=await gs('apiUpdateCheck',state.token,id,doc,i,value);if(!r.ok)throw new Error(r.message);const e=state.allEntries?.find(x=>x.id===id);if(e)e.checks=r.checks;await loadAudit();renderReport()}
+async function loadAudit(){const r=await gs('apiGetAudit',state.token,'',500);if(!r.ok)throw new Error(r.message);state.audit=r.logs||[];renderAudit()}
+function renderAudit(){const q=($('#auditSearch')?.value||'').toLowerCase();const logs=state.audit.filter(x=>[x.action,x.username,x.userName,x.patient,x.rm,x.entryId,x.note].join(' ').toLowerCase().includes(q));$('#auditBody').innerHTML=logs.length?logs.map(x=>`<tr><td>${fmtStamp(x.timestamp)}</td><td>${escapeHtml(x.action)}</td><td>${escapeHtml(x.userName||x.username)}</td><td>${escapeHtml(x.patient)}</td><td>${escapeHtml(x.rm)}</td><td>${escapeHtml(x.entryId)}</td><td><pre style="white-space:pre-wrap;margin:0;font:8px/1.4 ui-monospace">${escapeHtml(x.changedFields||'')}</pre></td><td>${escapeHtml(x.note||'')}</td></tr>`).join(''):'<tr><td colspan="8" class="muted" style="text-align:center;padding:22px">Belum ada aktivitas.</td></tr>'}
+async function showHistory(id){const e=state.entries.find(x=>x.id===id);$('#historyTitle').textContent=`${e?.nama||'Data'} • ${e?.nomorRM||''}`;const r=await gs('apiGetAudit',state.token,id,100);if(!r.ok)throw new Error(r.message);$('#historyBody').innerHTML=r.logs.length?r.logs.map(x=>`<div class="history-item"><strong>${escapeHtml(x.action)} • ${escapeHtml(x.userName||x.username)}</strong><small>${fmtStamp(x.timestamp)} • ${escapeHtml(x.note||'')}</small><pre>${escapeHtml(JSON.stringify({changedFields:x.changedFields,oldValues:x.oldValues,newValues:x.newValues},null,2))}</pre></div>`).join(''):'<p>Tidak ada histori.</p>';$('#historyModal').classList.remove('hidden')}
+function navigate(view){state.activeView=view;['entrySection','dataSection','reportsSection','auditSection'].forEach(id=>$('#'+id).classList.add('hidden'));$$('.app-home').forEach(el=>el.classList.toggle('hidden',view!=='home'));if(view==='entry')$('#entrySection').classList.remove('hidden');if(view==='data')$('#dataSection').classList.remove('hidden');if(view==='reports'){$('#reportsSection').classList.remove('hidden');refreshReports()}if(view==='audit'){$('#auditSection').classList.remove('hidden');renderAudit()};window.scrollTo({top:0,behavior:'smooth'})}
+function selectedReportPrint(){document.body.classList.add('printing-active');window.print();setTimeout(()=>document.body.classList.remove('printing-active'),200)}
+function printAll(){const original=state.activeReport;let keys=['minimal','eva','mutu','inform','site','operasi'];$('#reportsSection').setAttribute('data-print-all','1');const html=keys.map(k=>{const old=state.activeReport;state.activeReport=k;renderReport();const x=$('#reportArea').innerHTML;state.activeReport=old;return x}).join('<div style="page-break-after:always"></div>');$('#reportArea').innerHTML=html;document.body.classList.add('print-all');window.print();setTimeout(()=>{state.activeReport=original;$('#reportsSection').removeAttribute('data-print-all');document.body.classList.remove('print-all');renderReport()},250)}
+
+$('#toLogin').onclick=()=>$('#authCard').classList.add('login-mode');$('#toSignup').onclick=()=>$('#authCard').classList.remove('login-mode');
+$$('[data-eye]').forEach(b=>b.onclick=()=>{const i=$('#'+b.dataset.eye);i.type=i.type==='password'?'text':'password'});
+$('#signupForm').onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;setStatus('#suStatus','Membuat akun…');try{const r=await gs('apiSignUp',{fullName:$('#suName').value,username:$('#suUsername').value,email:$('#suEmail').value,password:$('#suPassword').value});if(!r.ok)throw new Error(r.message);setStatus('#suStatus',r.message,'ok');toast('Akun berhasil dibuat');setTimeout(()=>$('#authCard').classList.add('login-mode'),700)}catch(x){setStatus('#suStatus',x.message||'Gagal membuat akun','err')}finally{b.disabled=false}};
+$('#loginForm').onsubmit=async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;setStatus('#liStatus','Memverifikasi akun…');try{const r=await gs('apiLogin',{username:$('#liUsername').value,password:$('#liPassword').value,remember:$('#remember').checked});if(!r.ok)throw new Error(r.message);state.token=r.token;state.user=r.user;if($('#remember').checked)localStorage.setItem(KEY,r.token);else sessionStorage.setItem(KEY,r.token);setStatus('#liStatus','Login berhasil. Membuka dashboard…','ok');setTimeout(openApp,420)}catch(x){setStatus('#liStatus',x.message||'Login gagal','err')}finally{btn.disabled=false}};
+$('#forgot').onclick=()=>toast('Reset password dikelola administrator pada sheet USERS.');
+$('#logoutBtn').onclick=async()=>{if(!confirm('Logout dari SIM-OR?'))return;await gs('apiLogout',state.token);clearToken();showAuth();toast('Sesi ditutup');};
+$('#refreshBtn').onclick=async()=>{await loadEntries();await loadAudit();if(state.activeView==='reports')await refreshReports();toast('Data diperbarui')};
+$$('[data-nav]').forEach(btn=>btn.onclick=()=>navigate(btn.dataset.nav));
+$('#entryForm').onsubmit=saveEntry;$('#resetEntryBtn').onclick=resetForm;$('#cancelEditBtn').onclick=()=>{resetForm();navigate('data')};$('#f_room').onchange=updateRoomInfo;$('#f_kamar').onchange=autoMapRoom;
+$('#applyFilterBtn').onclick=loadEntries;$('#clearFilterBtn').onclick=()=>{ $('#q').value='';$('#filterDate').value=isoToday();$('#filterRoom').value='';$('#filterKamar').value='';loadEntries()};$('#deleteFilteredBtn').onclick=delFiltered;
+$('#dataBody').onclick=async e=>{const edit=e.target.closest('[data-edit]');const del=e.target.closest('[data-del]');const hist=e.target.closest('[data-history]');const chk=e.target.closest('[data-check]');try{if(edit)fillForm(state.entries.find(x=>x.id===edit.dataset.edit));if(del)await delEntry(del.dataset.del);if(hist)await showHistory(hist.dataset.history);if(chk){const [id,doc,i]=chk.dataset.check.split('|');const cur=checkVal(state.allEntries.find(x=>x.id===id)||{},doc,Number(i));const nv=cur===''?1:cur===1?0:'';await updateCheck(id,doc,Number(i),nv)}}catch(x){toast(x.message||'Terjadi kesalahan')}};
+$('#reportTabs').onclick=async e=>{const b=e.target.closest('[data-report]');if(!b)return;state.activeReport=b.dataset.report;renderReport()};$('#refreshReportsBtn').onclick=refreshReports;$('#printActive').onclick=selectedReportPrint;$('#printAll').onclick=printAll;$('#reportDate').onchange=refreshReports;$('#reportRoom').onchange=refreshReports;$('#reportPeriod').onchange=refreshReports;
+$('#auditSearch').oninput=renderAudit;$('#refreshAuditBtn').onclick=loadAudit;$('#closeHistory').onclick=()=>$('#historyModal').classList.add('hidden');$('#historyModal').onclick=e=>{if(e.target.id==='historyModal')$('#historyModal').classList.add('hidden')};
+boot();
